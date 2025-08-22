@@ -1,0 +1,40 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# YOLO11 object detection model with P3-P5 outputs and SFY feature fusion
+
+# Parameters
+nc: 80 # number of classes
+scales: # model compound scaling constants
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024] # summary: 319 layers, 2624080 parameters, 2624064 gradients, 6.6 GFLOPs
+  s: [0.50, 0.50, 1024] # summary: 319 layers, 9458752 parameters, 9458736 gradients, 21.7 GFLOPs
+  m: [0.50, 1.00, 512] # summary: 409 layers, 20114688 parameters, 20114672 gradients, 68.5 GFLOPs
+  l: [1.00, 1.00, 512] # summary: 631 layers, 25372160 parameters, 25372144 gradients, 87.6 GFLOPs
+  x: [1.00, 1.50, 512] # summary: 631 layers, 56966176 parameters, 56966160 gradients, 196.0 GFLOPs
+
+# YOLO11n backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [64, 3, 2]]     # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]    # 1-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]]  # 2
+  - [-1, 1, Conv, [256, 3, 2]]    # 3-P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]]  # 4
+  - [-1, 1, Conv, [512, 3, 2]]    # 5-P4/16
+  - [-1, 2, C3k2, [512, True]]    # 6
+  - [-1, 1, Conv, [1024, 3, 2]]   # 7-P5/32
+  - [-1, 2, C3k2, [1024, True]]   # 8
+
+# YOLO11n head with SFY feature fusion
+head:
+  # SFY Feature Fusion - takes P2, P3, P4, P5 features (after C3k2 blocks)
+  # The parsing logic will automatically pass input_channels as dims parameter
+  - [[1, 4, 6, 8], 1, SFY, [128]]  # 9: SFY fusion module, feature_size=128, dims will be [256, 512, 512, 1024]
+
+  # Feature Selectors - extract different scale features from SFY output
+  - [[9], 1, SFYSelector, [0]]     # 10: Select out4 (P4 equivalent)
+  - [[9], 1, SFYSelector, [1]]     # 11: Select out5 (P5 equivalent)
+  - [[9], 1, SFYSelector, [2]]     # 12: Select out6 (P6 equivalent)
+  - [[9], 1, SFYSelector, [3]]     # 13: Select out7 (P7 equivalent)
+
+  # Detection Head - use the four selected features for multi-scale detection
+  - [[10, 11, 12, 13], 1, Detect, [nc]]  # 14: Multi-scale detection head

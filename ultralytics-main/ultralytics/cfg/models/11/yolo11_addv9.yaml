@@ -1,0 +1,42 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# YOLOv11 object detection model with P3-P5 outputs. For Usage examples see https://docs.ultralytics.com/tasks/detect
+# Parameters
+nc: 3 # number of classes
+scales: # model compound scaling constants, i.e. 'model=yolo11n.yaml' will call yolo11-RBFKANConv2d.yaml with scale 'n'
+  n: [0.50, 0.25, 1024] # summary: 319 layers, 2624080 parameters, 2624064 gradients, 6.6 GFLOPs
+groups: 1
+
+# YOLOv11 backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [16, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [32, 3, 2]] # 1-P2/4
+  - [-1, 1, C3k2, [64, 1, False, 0.25]] # 2
+  - [-1, 1, Conv, [64, 3, 2]] # 3-P3/8
+  - [-1, 2, C3k2, [128, 1, False, 0.25]] # 4
+  - [-1, 1, Conv, [128, 3, 2]] # 5-P4/16
+  - [-1, 2, C3k2, [128, 1, True]] # 6
+  - [-1, 1, Conv, [256, 3, 2]] # 7-P5/32
+  - [-1, 2, C3k2, [256, 1, True]] # 8
+  - [-1, 1, SPPELAN, [256, 5]] # 9
+  - [-1, 2, C2PSA, [256]] # 10
+
+# YOLOv11 head
+head:
+  # ------------------------ P4/16 ------------------------
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 11
+  - [[-1, 6], 1, Concat, [1]] # 12
+  - [-1, 1, C3k2, [384, 128, 1, False]] # 13
+  # ------------------------ P3/8 ------------------------
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 14
+  - [[-1, 4], 1, Concat, [1]] # 15
+  - [-1, 1, C3k2, [256, 64, 1, False]] # 16
+  - [-1, 1, Conv, [64, 3, 2]] # 17
+  - [[-1, 13], 1, Concat, [1]] # 18
+  - [-1, 1, C3k2, [192, 128, 1, False]] # 19
+  # ------------------------ P5/32 ------------------------
+  - [-1, 1, Conv, [128, 3, 2]] # 20
+  - [[-1, 10], 1, Concat, [1]] # 21
+  - [-1, 1, C3k2, [384, 256, 1, True]] # 22
+  # ------------------------ Detect ------------------------
+  - [[16, 19, 22], 1, Detect, [nc]] # 23
